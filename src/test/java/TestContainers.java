@@ -1,48 +1,47 @@
 
-import static org.junit.Assert.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
+import java.util.List;
 
-import org.apache.http.HttpHeaders;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.client.HttpClientBuilder;
 import org.junit.Test;
-import com.google.gson.*;
+
+import io.restassured.RestAssured;
+// import io.restassured.RestAssured.*;
+// import io.restassured.matcher.RestAssuredMatchers.*;
+import io.restassured.response.Response;
 
 public class TestContainers {
 
 
-    public HttpResponse setUp(String urlString) throws ClientProtocolException, IOException {
-        CredentialsProvider provider = new BasicCredentialsProvider();
-        UsernamePasswordCredentials credentials = new UsernamePasswordCredentials("user", "user");
-        provider.setCredentials(AuthScope.ANY, credentials);
-
-        HttpClient client = HttpClientBuilder.create().setDefaultCredentialsProvider(provider).build();
-        HttpGet request = new HttpGet(urlString);
-        request.setHeader(HttpHeaders.CONTENT_TYPE, "application/json");
-        HttpResponse response = client.execute(request);
-        return response;
+    public void setUp(String baseURI, String method, List headers) {
+        RestAssured.baseURI = baseURI;
+        Response response = RestAssured.given().header(headers).get();
     }
 
     @Test
-    public void isContainerRunning() throws ClientProtocolException, IOException {
-        HttpResponse response = setUp("http://localhost:8090/rest/server/containers");
-        int statusCode = response.getStatusLine().getStatusCode();
-        System.out.println(response);
-        
-        assertEquals(statusCode, HttpStatus.SC_OK);
-        assertEquals("application/json", response.getHeaders("Content-Type:"));
-        // Gson gson = new Gson();
-        // String json = gson.fromJson(bj);
-
+    public void testIfContaierIsRunning() {
+        RestAssured.baseURI = "http://localhost:8090/rest/server/containers";
+        Response response = RestAssured.given().header("Content-type", "application/json").when().get();
+      
+        assertEquals(200, response.getStatusCode());
+        assertTrue(response.asString().contains("SUCCESS"));    
     }
 
+    @Test
+    public void testContainerIsStarted() {
+
+        RestAssured.baseURI = "http://localhost:8090/rest/server/containers";
+        RestAssured.given().header("Content-type", "application/xml").when().get().
+            then().assertThat().body("response.kie-containers.kie-container.@status", equalTo("STARTED"));
+    }
+
+    @Test
+    public void testContainerName() {
+
+        RestAssured.baseURI = "http://localhost:8090/rest/server/containers/ict-devices-kjar-1_0-SNAPSHOT";
+        RestAssured.given().header("Content-type", "application/xml").when().get().
+            then().assertThat().body("response.@type", equalTo("SUCCESS"));
+    }
 }
